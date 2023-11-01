@@ -1,0 +1,7 @@
+pylint
+setuptools
+wheel
+twine
+pytest
+pytest-xdist
+pyinstaller
