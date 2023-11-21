@@ -12,6 +12,12 @@ class Excel(object):
         wb.sheetnames
         ws = wb[0]
         ws = wb['sheetA']
+
+        # add whole row
+        * append(['This is A1', 'This is B1', 'This is C1'])
+        * **or** append({'A' : 'This is A1', 'C' : 'This is C1'})
+        * **or** append({1 : 'This is A1', 3 : 'This is C1'})
+
         ws['A4']
         cell_range = ws['A1':'C2']
         coll_range = ws['C:D']
@@ -19,13 +25,18 @@ class Excel(object):
         tuple(ws.rows), tuple(ws.columns)
 
     """
-    path = property(lambda o: o.pth, lambda o, v: setattr(o, 'pth', v))
+    path = property(lambda o: o._path, lambda o, v: setattr(o, '_path', v))
     active_sheet = property(lambda o: o.wb.active)
     sheet_count = property(lambda o: len(o.wb._sheets))
     sheets = property(lambda o: [Sheet(a) for a in o.wb.worksheets])
+    readonly = property(lambda o: o._readonly, lambda o, v: setattr(o, '_readonly', v))
+    overwrite = property(lambda o: o._overwrite, lambda o, v: setattr(o, '_overwrite', v))
 
-    def __init__(self, pth=None) -> None:
-        self.pth = Path(pth) if pth else None
+    def __init__(self, pth=None, overwrite=False) -> None:
+        self._path = Path(pth) if pth else None
+        self._readonly = False if (pth is None or not self._path.exists()) else True
+        self._readonly = self._readonly if overwrite is False else False
+        self._overwrite = overwrite
         self.ext = Path(pth).suffix if pth else None
         self.wb = None
     
@@ -39,17 +50,19 @@ class Excel(object):
     def open(self) -> Excel:
         if self.wb:
             return self
-        if self.pth:
-            self.wb = load_workbook(str(self.pth))
+        if self.path and self.path.exists():
+            self.wb = load_workbook(str(self.path))
         else:
             self.wb = Workbook()
         return self
 
     def save(self) -> Excel:
-        if self.pth is None:
+        if self.path is None or self.readonly:
             return self
-        self.pth.parent.mkdir(parents=True, exist_ok=True)
-        self.wb.save(self.pth)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.overwrite and self.path.exists():
+            self.path.unlink()
+        self.wb.save(self.path)
         return self
     
     def create_sheet(self, title = None, index = None) -> None:
